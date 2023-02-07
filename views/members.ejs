@@ -1,0 +1,14 @@
+<%- include("templates/header") %>
+<h1>Hello, <%= username %>.</h1>
+<br>
+<%  if (random_image == 0) { %>
+<img src='/gs1200.jpg' style='width:250px;'>
+<% } else if (random_image == 1) { %>
+<img src='/super10.jpg' style='width:250px;'>
+<% } else { %>
+<img src='/vstrom.jpg' style='width:250px;'>
+<% } %>
+<form action='/logout' method='post'>
+    <button>Log out</button>
+</form>
+<%- include("templates/footer") %>
