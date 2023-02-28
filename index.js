@@ -1,9 +1,16 @@
+require('./utils');
 require('dotenv').config();
+
 const express = require('express');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const bcrypt = require('bcrypt');
 const saltRounds = 12;
+
+const database = include('databaseConnection');
+const db_utils = include('database/db_utils');
+const db_users = include('database/users');
+const success = db_utils.printMySQLVersion();
 
 const port = process.env.PORT || 3000;
 
@@ -12,7 +19,7 @@ const app = express();
 const expireTime = 60 * 60 * 1000; //expires after 1 hour  (hours * minutes * seconds * millis)
 
 //Users and Passwords (in memory 'database')
-var users = [];
+// var users = [];
 
 /* secret information section */
 const mongodb_user = process.env.MONGODB_USER;
@@ -77,7 +84,23 @@ app.get('/members', (req, res) => {
     }
 });
 
-app.post('/submitUser', (req, res) => {
+app.get('/createTables', async (req, res) => {
+
+    const create_tables = include('database/create_tables');
+
+    var success = create_tables.createTables();
+    if (success) {
+        res.render("successMessage", {
+            message: "Created tables."
+        });
+    } else {
+        res.render("errorMessage", {
+            error: "Failed to create tables."
+        });
+    }
+});
+
+app.post('/submitUser', async (req, res) => {
     var username = req.body.username;
     var email = req.body.email;
     var password = req.body.password;
@@ -94,17 +117,34 @@ app.post('/submitUser', (req, res) => {
         res.redirect('/signup?missing=password');
 
     } else {
-        users.push({
+        var success = await db_users.createUser({
             username: username,
             email: email,
-            password: hashedPassword
+            hashedPassword: hashedPassword
         });
+        console.log(username)
+        console.log(email)
+        console.log(hashedPassword)
+
+        if (success) {
+            // var results = await db_users.getUsers();
+
+            res.redirect('/members');
+
+            // res.render("successMessage", {
+            //     message: "User created."
+            // });
+        } else {
+            res.render("errorMessage", {
+                error: "Failed to create user."
+            });
+        }
 
         req.session.authenticated = true;
         req.session.username = username;
         req.session.cookie.maxAge = expireTime;
 
-        res.redirect('/members');
+
     }
 
 });
