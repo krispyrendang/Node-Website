@@ -60,6 +60,38 @@ app.get('/signup', (req, res) => {
 
 });
 
+app.get('/todo', async (req, res) => {
+    var missingInfo = req.query.missing;
+    user_id = req.session.user_id;
+    username = req.session.username;
+
+    if (!isValidSession(req)) {
+        res.redirect("/");
+    } else {
+        var resultList = await db_users.getToDoList({
+            user_id
+        });
+
+        console.log(user_id);
+
+        if (resultList) {
+
+            res.render("todo", {
+                list: resultList,
+                username,
+                missing: missingInfo
+            });
+        } else {
+            res.render("todo", {
+                list: "none",
+                username,
+                missing: missingInfo
+            });
+        }
+    }
+
+});
+
 app.get('/login', (req, res) => {
     res.render("login", {
         error: "none"
@@ -68,8 +100,9 @@ app.get('/login', (req, res) => {
 
 app.get('/members', (req, res) => {
 
-    if (req.session.authenticated) {
-
+    if (!isValidSession(req)) {
+        res.redirect("/");
+    } else {
 
         var bruh = Math.floor(Math.random() * 3);
 
@@ -77,11 +110,8 @@ app.get('/members', (req, res) => {
             username: req.session.username,
             random_image: bruh
         });
-
-
-    } else {
-        res.redirect('/index?user%20not%20logged%20in');
     }
+
 });
 
 app.get('/createTables', async (req, res) => {
@@ -107,90 +137,234 @@ app.post('/submitUser', async (req, res) => {
 
     var hashedPassword = bcrypt.hashSync(password, saltRounds);
 
-    if (!username) {
-        res.redirect('/signup?missing=username');
-
-    } else if (!email) {
-        res.redirect('/signup?missing=email');
-
-    } else if (!password) {
-        res.redirect('/signup?missing=password');
-
+    if (!isValidSession(req)) {
+        res.redirect("/");
     } else {
-        var success = await db_users.createUser({
-            username: username,
-            email: email,
-            hashedPassword: hashedPassword
-        });
-        console.log(username)
-        console.log(email)
-        console.log(hashedPassword)
+        if (!username) {
+            res.redirect('/signup?missing=username');
 
-        if (success) {
-            // var results = await db_users.getUsers();
+        } else if (!email) {
+            res.redirect('/signup?missing=email');
 
-            res.redirect('/members');
+        } else if (!password) {
+            res.redirect('/signup?missing=password');
 
-            // res.render("successMessage", {
-            //     message: "User created."
-            // });
         } else {
-            res.render("errorMessage", {
-                error: "Failed to create user."
+            var success = await db_users.createUser({
+                username: username,
+                email: email,
+                hashedPassword: hashedPassword
             });
+            console.log(username)
+            console.log(email)
+            console.log(hashedPassword)
+
+
+            if (success) {
+                var results = await db_users.getUsers();
+                req.session.authenticated = true;
+                req.session.user_type = results[0].user_type;
+                req.session.username = results[0].username;
+                req.session.user_id = results[0].user_id;
+                req.session.cookie.maxAge = expireTime;
+                console.log(results[0].user_id);
+
+                res.redirect('/todo');
+
+            } else {
+                res.render("errorMessage", {
+                    error: "Failed to create user."
+                });
+            }
+
         }
-
-        req.session.authenticated = true;
-        req.session.username = username;
-        req.session.cookie.maxAge = expireTime;
-
-
     }
 
 });
 
-app.post('/loggingin', (req, res) => {
-    var email = req.body.email;
-    var password = req.body.password;
+app.get('/user/:id', async (req, res) => {
+    var id = req.params.id;
+    adminname = req.session.username;
 
-    for (i = 0; i < users.length; i++) {
-        if (users[i].email == email) {
-            if (bcrypt.compareSync(password, users[i].password)) {
-                req.session.authenticated = true;
-                req.session.username = users[i].username;
-                req.session.cookie.maxAge = expireTime;
-                res.redirect('/members');
-                return;
-            } else {
-                console.log("invalid password");
-                res.redirect('/login?error=password');
-                return;
+    var resultList = await db_users.getToDoList({
+        user_id: id
+    });
 
-            }
+    if (resultList) {
+
+        res.render("adminToDo", {
+            adminname,
+            list: resultList,
+            username,
+            missing: "none"
+        });
+    } else {
+        res.render("adminToDo", {
+            adminname,
+            list: "none",
+            username,
+            missing: "none"
+        });
+    }
+
+});
+
+app.get('/admin', async (req, res) => {
+    username = req.session.username;
+    var results = await db_users.getUsers();
+
+
+    if (!isAdmin(req)) {
+        res.redirect("/");
+    } else {
+        res.render("admin", {
+            users: results,
+            username
+        });
+    }
+
+
+});
+
+app.post('/addToDo', async (req, res) => {
+    var user_id = req.session.user_id;
+    var username = req.session.username;
+    var todo = req.body.todo;
+    console.log("add button user_id: " + user_id);
+
+    if (!isValidSession(req)) {
+        res.redirect("/");
+    } else {
+        if (!todo) {
+            res.redirect('/todo?missing=todo');
+
         } else {
-            console.log("invalid email");
-            res.redirect('/login?error=email');
-            return;
 
+            var results = await db_users.addToDo({
+                user_id,
+                todo
+            });
+
+            var resultList = await db_users.getToDoList({
+                user_id: req.session.user_id
+            });
+
+        }
+
+        if (resultList && results) {
+
+            res.render("todo", {
+                list: resultList,
+                username,
+                missing: "none"
+            });
+        } else {
+            res.render("todo", {
+                list: "none",
+                username,
+                missing: "none"
+            });
         }
     }
 
+});
+
+app.post('/loggingin', async (req, res) => {
+    var email = req.body.email;
+    var password = req.body.password;
+
+
+    var results = await db_users.getUser({
+        email: email,
+        hashedPassword: password
+    });
+
+    if (results) {
+        if (results.length == 1) { //there should only be 1 user in the db that matches
+            if (bcrypt.compareSync(password, results[0].hashedPassword)) {
+                req.session.authenticated = true;
+                req.session.user_type = results[0].user_type;
+                req.session.username = results[0].username;
+                req.session.user_id = results[0].user_id;
+                req.session.cookie.maxAge = expireTime;
+
+                if (!isAdmin(req)) {
+                    res.redirect('/todo');
+                } else {
+                    res.redirect('/admin');
+                }
+
+                return;
+            } else {
+                console.log("invalid password");
+            }
+        } else {
+            console.log('invalid number of users matched: ' + results.length + " (expected 1).");
+            res.render("login", {
+                error: "User and password not found."
+            });
+            return;
+        }
+    }
+
+    console.log('user not found');
+    //user and password combination not found
+    res.render("login", {
+        error: "User and password not found."
+    });
 });
 
 app.post('/logout', (req, res) => {
 
     req.session.authenticated = false;
+    req.session.destroy();
     res.render("index");
 
 });
 
-app.get('/cat/:id', (req, res) => {
-    var cat = req.params.id;
 
-    res.render("cat", {
-        cat: cat
-    });
-});
+function isValidSession(req) {
+    if (req.session.authenticated) {
+        return true;
+    }
+    return false;
+}
+
+function sessionValidation(req, res, next) {
+    if (!isValidSession(req)) {
+        req.session.destroy();
+        res.redirect('/');
+        return;
+    } else {
+        next();
+    }
+}
+
+function isAdmin(req) {
+    if (req.session.user_type == 'admin') {
+        return true;
+    }
+    return false;
+}
+
+function adminAuthorization(req, res, next) {
+    if (!isAdmin(req)) {
+        res.status(403);
+        res.render("errorMessage", {
+            error: "Not Authorized"
+        });
+        return;
+    } else {
+        next();
+    }
+}
+
+app.use('/members', sessionValidation);
+app.use('/todo', sessionValidation);
+app.use('/addToDo', sessionValidation);
+
+app.use('/admin', adminAuthorization);
+
 
 app.use(express.static(__dirname + "/public"));
 

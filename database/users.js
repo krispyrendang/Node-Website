@@ -3,9 +3,9 @@ const database = include('databaseConnection');
 async function createUser(postData) {
 	let createUserSQL = `
 		INSERT INTO user
-		(username, email, hashedPassword)
+		(username, email, hashedPassword, user_type_id)
 		VALUES
-		(:user, :email, :hashedPassword);
+		(:user, :email, :hashedPassword, 1);
 	`;
 
 	let params = {
@@ -27,10 +27,37 @@ async function createUser(postData) {
 	}
 }
 
+async function addToDo(postData) {
+	let addToDoSQL = `
+		INSERT INTO todo
+		(description, user_id)
+		VALUES
+		(:description, :user_id);
+	`;
+
+	let params = {
+		user_id: postData.user_id,
+		description: postData.todo,
+	}
+
+	try {
+		const results = await database.query(addToDoSQL, params);
+
+		console.log("Successfully added todo item");
+		console.log(results[0]);
+		return true;
+	} catch (err) {
+		console.log("Error inserting todo item");
+		console.log(err);
+		return false;
+	}
+}
+
 async function getUsers(postData) {
 	let getUsersSQL = `
-		SELECT username, email, password
-		FROM user;
+		SELECT user_id, username, user_type
+		FROM user
+		JOIN user_type USING (user_type_id);
 	`;
 
 	try {
@@ -48,14 +75,14 @@ async function getUsers(postData) {
 
 async function getUser(postData) {
 	let getUserSQL = `
-		SELECT user_id, username, email, password, type
+		SELECT user_id, username, email, hashedPassword, user_type_id, user_type
 		FROM user
-		JOIN user_type USING (user_type_user_id)
-		WHERE username = :user;
+		JOIN user_type USING (user_type_id)
+		WHERE email = :email;
 	`;
 
 	let params = {
-		user: postData.user
+		email: postData.email
 	}
 
 	try {
@@ -71,8 +98,43 @@ async function getUser(postData) {
 	}
 }
 
+async function getToDoList(postData) {
+	let getToDoListSQL = `
+	SELECT description, username, user_id
+	FROM user
+	JOIN user_type USING (user_type_id)
+	JOIN todo Using (user_id)
+		WHERE user_id = :user_id;
+	`;
+
+	let params = {
+		user_id: postData.user_id
+	}
+
+	try {
+		const results = await database.query(getToDoListSQL, params);
+
+		console.log("Successfully found to-do items");
+		console.log("results size: " + results[0].length);
+		console.log(results[0]);
+
+		if (results[0].length == 0) {
+			return false;
+		} else {
+			return results[0];
+		}
+
+	} catch (err) {
+		console.log("Error trying to find to-do items");
+		console.log(err);
+		return false;
+	}
+}
+
 module.exports = {
 	createUser,
 	getUsers,
-	getUser
+	getUser,
+	getToDoList,
+	addToDo
 };

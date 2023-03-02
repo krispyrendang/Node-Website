@@ -5,10 +5,8 @@ log in
     <input name='password' type='password' placeholder='password'>
     <button>Submit</button>
 </form>
-<% if (error == "email") { %>
-<br> Error: Incorrect email. Please try again.
-<% } %>
-<% if (error == "password") { %>
-<br> Error: Incorrect password. Please try again.
+<br>
+<%  if (error != "none") { %>
+<div><%= error %> </div>
 <% } %>
 <%- include("templates/footer") %>

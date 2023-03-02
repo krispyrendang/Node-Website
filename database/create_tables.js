@@ -7,6 +7,7 @@ async function createTables() {
             username VARCHAR(25) NOT NULL,
 			email VARCHAR(45) NOT NULL,
             hashPassword VARCHAR(100) NOT NULL,
+			type INT NOT NULL,
             PRIMARY KEY (user_id),
             UNIQUE INDEX unique_username (username ASC) VISIBLE);
 	`;
