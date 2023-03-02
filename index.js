@@ -195,7 +195,7 @@ app.get('/user/:id', async (req, res) => {
         res.render("adminToDo", {
             adminname,
             list: resultList,
-            username,
+            username: resultList[0].username,
             missing: "none"
         });
     } else {
