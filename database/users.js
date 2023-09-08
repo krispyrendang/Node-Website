@@ -64,8 +64,8 @@ async function getUsers(postData) {
 		const results = await database.query(getUsersSQL);
 
 		console.log("Successfully retrieved users");
-		console.log(results[0]);
-		return results[0];
+		console.log(results[0]);		
+		return results[0];			//!! Gets ALL users and returns the first user account !!
 	} catch (err) {
 		console.log("Error getting users");
 		console.log(err);

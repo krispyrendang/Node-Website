@@ -137,9 +137,9 @@ app.post('/submitUser', async (req, res) => {
 
     var hashedPassword = bcrypt.hashSync(password, saltRounds);
 
-    if (!isValidSession(req)) {
-        res.redirect("/");
-    } else {
+    // if (!isValidSession(req)) {
+    //     res.redirect("/");
+    // } else {
         if (!username) {
             res.redirect('/signup?missing=username');
 
@@ -155,16 +155,19 @@ app.post('/submitUser', async (req, res) => {
                 email: email,
                 hashedPassword: hashedPassword
             });
-            console.log(username)
-            console.log(email)
-            console.log(hashedPassword)
+            console.log(username);
+            console.log(email);
+            console.log(hashedPassword);
 
 
             if (success) {
-                var results = await db_users.getUsers();
+                var results = await db_users.getUser({
+                    email: email,
+                    hashedPassword: password    
+                });
                 req.session.authenticated = true;
                 req.session.user_type = results[0].user_type;
-                req.session.username = results[0].username;
+                req.session.username = results[0].username; 
                 req.session.user_id = results[0].user_id;
                 req.session.cookie.maxAge = expireTime;
                 console.log(results[0].user_id);
@@ -178,7 +181,7 @@ app.post('/submitUser', async (req, res) => {
             }
 
         }
-    }
+    // }
 
 });
 
@@ -341,6 +344,7 @@ function sessionValidation(req, res, next) {
 }
 
 function isAdmin(req) {
+
     if (req.session.user_type == 'admin') {
         return true;
     }
